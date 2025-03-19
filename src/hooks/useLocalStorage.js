@@ -1,12 +1,29 @@
 import { useState, useEffect } from 'react';
 
 /**
- * Custom hook to manage state that is synchronized with localStorage.
+ * @module useLocalStorage
+ * @description Custom hook to manage state that is synchronized with localStorage.
  * This hook was created to encapsulate localStorage interaction, improving code reuse,
  * maintainability, and consistency in how localStorage is accessed across the application.
+ * @function useLocalStorage
+ * @param {string} key - The localStorage key to be used for storage.
+ * @returns {array} An array containing the current value and a function to update the value.
+ * @example
+ * const [myValue, setMyValue] = useLocalStorage('myKey');
+ * setMyValue('newValue');
+ * const [myObject, setMyObject] = useLocalStorage('myObject');
+ * setMyObject({ name: 'John', age: 30 });
  */
 function useLocalStorage(key) {
+  // the setStatements function.
+  const setStatements = (value) => {
+    setValue(value);
+  };
   /**
+   * @function 
+   * @param {string} key - The localStorage key to be used for storage.
+   * @param {any} initialValue - The initial value to be used if there is no value stored in local storage.
+   * @description Initializes the value state with a value from localStorage or null if not found.
    * Initializes the state with a value from localStorage or null if not found.
    * @returns {any} The initial state value, retrieved from localStorage or null.
    */
@@ -23,8 +40,10 @@ function useLocalStorage(key) {
       throw error;
     }
   });
-
   /**
+   * @function
+   * @param {string} key - The localStorage key to be used for storage.
+   * @param {any} value - The value to be stored in local storage.
    * Effect to synchronize state changes with localStorage.
    * Runs whenever the key or value changes.
    */
@@ -38,15 +57,18 @@ function useLocalStorage(key) {
       // rethrow the error so the caller knows there was an issue.
       throw error;
     }
-    //re-run this effect if key or value changes.
+    // Re-run this effect if key or value changes.
   }, [key, value]);
 
+  //create a loading state.
+  const [loading, setLoading] = useState(true)
+  // create an error state.
+  const [error, setError] = useState(null);
   /**
    * @returns {[any, function]} An array containing the current value and a function to update the value.
    * @param {string} key - The localStorage key to be used for storage.
-   * @param {any} value - The value to be stored. Can be any JSON serializable value.
+   * @param {any} value - The value to be stored. Can be any JSON serializable value, or null.
    */
-  return [value, setValue]; 
+  return [value, setStatements, loading, error];
 }
-
 export default useLocalStorage;
