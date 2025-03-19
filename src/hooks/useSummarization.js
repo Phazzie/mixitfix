@@ -11,6 +11,8 @@ import { useState } from 'react';
  * @function useSummarization
  * @description Custom hook that encapsulates the logic for handling the AI summarization process.
  * @param {function} getMostRecentStatement - A function to retrieve the most recent statement for a given user.
+ * @param {string} code - The code of the current session.
+ * @description The code is used to access the correct statements in the local storage.
  * @returns {object} An object containing the aiResponse, apiError, and handleSummarizeClick.
  */
 function useSummarization(getMostRecentStatement, code) {
@@ -35,46 +37,55 @@ function useSummarization(getMostRecentStatement, code) {
     // If either statement is missing, log an error and return.
     if (!user1Statement || !user2Statement) {
       setApiError('Both participants must submit a statement before summarizing.');
+      // Exit the function early if there is no statement.
       return;
     }
 
     try {
+      // Send a POST request to the /api/ai-summarize endpoint with both statements.
+      // Include the current code in the body.
       const response = await fetch('/api/ai-summarize', {
-        // Send a POST request to the /api/ai-summarize endpoint with both statements.
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        // Send the user statements in the request body.
-        body: JSON.stringify({ user1Statement, user2Statement }),
+        // Send the statements and the code to the api.
+        // The code is used to access the correct statements in the local storage.
+        body: JSON.stringify({ user1Statement, user2Statement, code }),
       });
-
-      // If the response is not ok, throw an error.
-      // This will stop the rest of the try block from running and proceed to the catch block.
+      
       if (!response.ok) {
-        // Get the error message from the response.
         const errorData = await response.json();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.errorMessage}`);
+        const errorMessage = errorData.errorMessage || `Request failed with status ${response.status}`;
+        throw new Error(errorMessage);
       }
-
-      // Parse the JSON response from the API.
+      
+      // Parse the JSON response from the API
       const data = await response.json();
-      // Set the ai response, to be displayed to the user.
-      setAiResponse(data.aiResponse);
-      // clear the api error state.
+      // Check if the response contains the aiResponse.
+      if (data.aiResponse) {
+        setAiResponse(data.aiResponse);
+      } else {
+        // Throw an error if the aiResponse is missing.
+        setApiError('Response missing aiResponse');
+        throw new Error('Response missing aiResponse');
+      }
       setApiError('');
     } catch (error) {
-      // If there was an error, log it to the console.
-      console.error("API Error:", error);
-      // Check if the error is an http error.
-      if (error.message.includes("HTTP error!")) {
-        // Extract the error message from the error.message string.
-        const errorMessage = error.message.split("message: ")[1];
-        // Set the error message to display to the user.
-        setApiError(errorMessage);
+      // Log the error to the console for debugging.
+      // This is useful for development.
+      console.error('Error during AI summarization:', error);
+      
+      if (error.message === 'Response missing aiResponse') {
+        setApiError('The summarization could not be performed.');
+      } else if (error.message.includes('Failed to fetch')) {
+        setApiError('Failed to connect to the server. Please check your network connection.');
+      } else if (error.message.includes('HTTP error')) {
+        const errorMessage = error.message.includes('message:') ? error.message.split('message: ')[1] : error.message;
+        setApiError('An error occurred while communicating with the server. Please try again. ' + errorMessage);
       } else {
         // set the api error to display an error to the user.
-        setApiError('An unexpected error occurred. Please try again.');
+        setApiError('An unexpected error occurred while trying to summarize. Please try again.' + error.message);
       }
     }
   };
